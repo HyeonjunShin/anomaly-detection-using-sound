@@ -1,0 +1,1 @@
+sudo docker run -it --rm --name setting --runtime=nvidia --gpus all ubuntu:22.04 /bin/bash
