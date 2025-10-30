@@ -5,7 +5,6 @@
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
-
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 
@@ -24,14 +23,17 @@
 		}
 	},
 	"runArgs": [
-		"--rm",
+		// "--rm",
 		"-it",
-		// "--runtime=nvidia",
-		"--gpus", "all",
-		"-e", "DISPLAY=$DISPLAY",
-		"-v", "/tmp/.X11-unix:/tmp/.X11-unix"
-	]
+		"--gpus", "all"
+
+	// WARNING: devcontainer apply auto 
+	// 	"-e", "DISPLAY=$DISPLAY",
+	// "-v", "/tmp/.X11-unix:/tmp/.X11-unix"
+	],
+	"remoteUser": "vscode"
 
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "devcontainer"
+
 }
