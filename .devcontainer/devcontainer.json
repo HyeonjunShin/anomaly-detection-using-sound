@@ -25,7 +25,10 @@
 	"runArgs": [
 		// "--rm",
 		"-it",
-		"--gpus", "all"
+		"--gpus", "all",
+		// "--device-cgroup-rule=c 188:* rmw"
+		"--device=/dev/ttyUSB0", // mount host usb device to container
+		"--group-add", "dialout" // admit host usb authority
 
 	// WARNING: devcontainer apply auto 
 	// 	"-e", "DISPLAY=$DISPLAY",

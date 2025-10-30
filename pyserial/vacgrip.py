@@ -1,5 +1,4 @@
 """vacgrip.py
-데이터 패킷 처리, 로드 및 시리얼 통신 클래스 정의 (마이크로폰 전용으로 수정됨)
 """
 
 import struct
@@ -12,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 import serial  # pip install pyserial
 
-import timer # timer 모듈이 현재 환경에 정의되어 있다고 가정
+import timer
 
 MCU_CLOCK = 53760000
 BAUD_RATE = 921600
@@ -21,10 +20,9 @@ BAUD_RATE = 921600
 class VacGripPacketData:
     """VacGripPacketData"""
 
-    # 원본 데이터 포맷: tick[1] + flag[1] + imu[7] + loadcell[1] + mic[32]
     DATA_FORMAT: str = (
         "L" + "?" + "hhhhhhh" + "H" + "H" * 32
-    ) 
+    )  # tick[1] + flag[1] + imu[7] + loadcell[1] + mic[32]
 
     header1: bytes
     header2: bytes
@@ -56,38 +54,39 @@ class VacGripPacketData:
         self.crc = packet[-1]
 
     def __str__(self) -> str:
-        # 출력 내용을 마이크로폰 데이터에 집중하도록 수정
-        avg_mic = np.mean(self.mic)
-        max_mic = np.max(self.mic)
-        
-        text = "T={:.4f}s | ".format(int(self.tick) / MCU_CLOCK)
-        text += f"Flag:{self.flag} | MIC_Avg:{avg_mic:.2f} | MIC_Max:{max_mic}"
+        text = "{:.4f}: ".format(int(self.tick) / MCU_CLOCK)
+        text += str(self.flag) + ", "
+        text += str(self.acc) + ", "
+        text += str(self.gyro) + ", "
+        text += str(self.temperature) + ", "
+        text += str(self.loadcell) + ", "
+        text += str(self.mic) + ", "
         return text
 
 
 @dataclass
 class VacGripRawData:
-    """VacGripRawData (마이크로폰 전용)"""
+    """VacGripRawData"""
 
     tick: npt.NDArray[np.uint32]
-    flag: npt.NDArray[np.bool_] 
-    # accelerometer: npt.NDArray[np.int16] # 제거됨
-    # gyroscope: npt.NDArray[np.int16]    # 제거됨
-    # temperature: npt.NDArray[np.int16]  # 제거됨
-    # loadcell: npt.NDArray[np.uint16]    # 제거됨
+    flag: npt.NDArray[np.bool]
+    accelerometer: npt.NDArray[np.int16]
+    gyroscope: npt.NDArray[np.int16]
+    temperature: npt.NDArray[np.int16]
+    loadcell: npt.NDArray[np.uint16]
     microphone: npt.NDArray[np.uint16]
 
 
 @dataclass
 class VacGripData:
-    """VacGripData (마이크로폰 전용)"""
+    """VacGripData"""
 
-    time: npt.NDArray[np.float64] 
-    flag: npt.NDArray[np.bool_] 
-    # accelerometer: npt.NDArray[np.float64] # 제거됨
-    # gyroscope: npt.NDArray[np.float64]    # 제거됨
-    # temperature: npt.NDArray[np.float64]  # 제거됨
-    # loadcell: npt.NDArray[np.float64]    # 제거됨
+    time: npt.NDArray[np.float64]
+    flag: npt.NDArray[np.bool]
+    accelerometer: npt.NDArray[np.float64]
+    gyroscope: npt.NDArray[np.float64]
+    temperature: npt.NDArray[np.float64]
+    loadcell: npt.NDArray[np.float64]
     microphone: npt.NDArray[np.float64]
 
 
@@ -122,7 +121,7 @@ class VacGripPacketHandler:
         0x0390, 0x8395, 0x839F, 0x039A, 0x838B, 0x038E, 0x0384, 0x8381, \
         0x0280, 0x8285, 0x828F, 0x028A, 0x829B, 0x029E, 0x0294, 0x8291, \
         0x82B3, 0x02B6, 0x02BC, 0x82B9, 0x02A8, 0x82AD, 0x82A7, 0x02A2, \
-        0x82E3, 0x02E6, 0x02EC, 0x82E9, 0x02F8, 0x82FD, 0x02F7, 0x02F2, \
+        0x82E3, 0x02E6, 0x02EC, 0x82E9, 0x02F8, 0x82FD, 0x82F7, 0x02F2, \
         0x02D0, 0x82D5, 0x82DF, 0x02DA, 0x82CB, 0x02CE, 0x02C4, 0x82C1, \
         0x8243, 0x0246, 0x024C, 0x8249, 0x0258, 0x825D, 0x8257, 0x0252, \
         0x0270, 0x8275, 0x827F, 0x027A, 0x826B, 0x026E, 0x0264, 0x8261, \
@@ -135,6 +134,7 @@ class VacGripPacketHandler:
         self._data_format = VacGripPacketData.DATA_FORMAT
 
         self._packet_format = "<cccc"  # header1, header2, header3, reserved
+        # little-endian 1bytes 
         self._packet_format += "H"  # data_size
         self._packet_format += self._data_format
         self._packet_format += "H"  # crc
@@ -177,7 +177,7 @@ class VacGripPacketHandler:
                 yield packet_candidate, packetdata
 
             else:
-                del inputbuf[0] # 유효하지 않으면 한 바이트씩 버림
+                del inputbuf[0]
 
     @property
     def packet_size(self) -> int:
@@ -197,45 +197,51 @@ def load_packets(file_path: str) -> bytearray:
 def load_rawdata(file_path: str) -> VacGripRawData:
     tick = []
     flag = []
-    # mic 데이터만 추출
+    accelerometer = []
+    gyroscope = []
+    temperature = []
+    loadcell = []
     microphone = []
 
-    packets = load_packets(file_path)
-    if not packets:
-         raise ValueError(f"파일이 비어있거나 읽을 수 없습니다: {file_path}")
-         
-    for _, packetdata in VacGripPacketHandler().generate_valid_packet(packets):
+    for _, packetdata in VacGripPacketHandler().generate_valid_packet(
+        load_packets(file_path)
+    ):
         tick.append(packetdata.tick)
         flag.append(packetdata.flag)
+        accelerometer.append(packetdata.acc)
+        gyroscope.append(packetdata.gyro)
+        temperature.append(packetdata.temperature)
+        loadcell.append(packetdata.loadcell)
         microphone.append(packetdata.mic)
 
     return VacGripRawData(
         tick=np.array(tick, dtype=np.uint32),
-        flag=np.array(flag, dtype=np.bool_),
-        microphone=np.array(microphone, dtype=np.uint16), # 마이크 데이터는 uint16으로 유지
+        flag=np.array(flag, dtype=np.bool),
+        accelerometer=np.array(accelerometer, dtype=np.int16),
+        gyroscope=np.array(gyroscope, dtype=np.int16),
+        temperature=np.array(temperature, dtype=np.int16),
+        loadcell=np.array(loadcell, dtype=np.uint16),
+        microphone=np.array(microphone, dtype=np.uint16),
     )
 
 
 def load_data(file_path: str) -> VacGripData:
     rawdata = load_rawdata(file_path)
 
-    # 틱 오버플로우 처리를 위해 float64로 명시적 변환 (uint32 범위 초과 오류 방지)
-    tick_float = rawdata.tick.astype(np.float64) 
-    
-    tick_dif = tick_float[1:] - tick_float[:-1]
-    
-    # 2**32 (4294967296.0)를 더하여 오버플로우 보정
-    tick_dif[tick_dif < 0] = tick_dif[tick_dif < 0] + (2**32) 
-    
-    time_dif = tick_dif / MCU_CLOCK
+    tick_dif = rawdata.tick[1:] - rawdata.tick[:-1]
+    tick_dif[tick_dif < 0] = tick_dif[tick_dif < 0] + 4294967296
+    time_dif = tick_dif / 53760000
     time = np.cumsum(time_dif)
     time = np.insert(time, 0, 0)
 
-    # 마이크로폰 데이터만 반환
     return VacGripData(
         time=time,
         flag=rawdata.flag,
-        microphone=rawdata.microphone / 16 / 4096, #  스케일링된 마이크 데이터
+        accelerometer=rawdata.accelerometer / 8192,
+        gyroscope=rawdata.gyroscope / 65.5,
+        temperature=rawdata.temperature / 333.87 + 21,
+        loadcell=rawdata.loadcell / 4096,
+        microphone=rawdata.microphone / 16 / 4096,
     )
 
 
@@ -249,7 +255,7 @@ class DataWriterState(Enum):
 
 
 class DataWriter:
-    """데이터 수집 및 저장을 담당하는 기본 클래스"""
+    """DataWriter"""
 
     _timer: timer.Timer
     _state: DataWriterState
@@ -261,12 +267,8 @@ class DataWriter:
 
     def __init__(self, port_name: str, baud_rate: int = BAUD_RATE) -> None:
         self._timer = timer.Timer(0.001, self._update)
-        try:
-            self._serial = serial.Serial(port_name, baud_rate, timeout=0)
-            self._serial.reset_input_buffer()
-        except serial.SerialException as e:
-            raise e
-            
+        self._serial = serial.Serial(port_name, baud_rate, timeout=0)
+        self._serial.reset_input_buffer()
         self._packet_handler = VacGripPacketHandler()
         self._clear_buf()
 
@@ -276,34 +278,34 @@ class DataWriter:
     def close(self) -> None:
         if self._timer.is_running():
             self._timer.stop()
-        if self._serial.is_open:
-            self._serial.close()
-            
-    def is_running(self) -> bool:
-        return self._timer.is_running()
 
     def _clear_buf(self) -> None:
         self._inputbuf = bytearray(0)
         self._packets = bytearray(0)
 
     def _update(self) -> None:
-        # DataWriter는 COLLECTING 상태일 때만 데이터를 수집함 (출력 없음)
+        self._collect()
+
         if self._state == DataWriterState.COLLECTING:
-            self._collect()
+            return None
+
         elif self._state == DataWriterState.FINISH_AND_SAVING:
             self._save()
-            self._clear_buf()
             self._state = DataWriterState.SAVED
-            
+
+        self._clear_buf()
+
     def _collect(self) -> None:
         packet_size = self._packet_handler.packet_size
-        
+
+        # add new bytes to input buffer
         while True:
             new_bytes = self._serial.read(packet_size)
             self._inputbuf += new_bytes
             if len(new_bytes) < packet_size:
                 break
 
+        # add valid bytes to packets
         for packet, _ in self._packet_handler.generate_valid_packet(self._inputbuf):
             self._packets += packet
 
@@ -311,21 +313,26 @@ class DataWriter:
         packet_num = len(self._packets) / self._packet_handler.packet_size
         if packet_num == 0:
             print("No packets to save.")
+
         else:
             save_packets(self._file_path, self._packets)
-            print(f'Saved {int(packet_num)} packets on "{self._file_path}".')
+            print(f'{packet_num} packets are saved on "{self._file_path}".')
 
     def start(self) -> None:
+        print("Start data collection.")
         self._serial.write(b"s")
         self._state = DataWriterState.COLLECTING
 
     def stop(self) -> None:
+        print("Stop data collection and go idle.")
         self._serial.write(b"f")
         self._state = DataWriterState.IDLE
 
     def finish_and_save(self, file_path: str) -> None:
+        print("Finish data collection. Saving...")
         self._serial.write(b"f")
-        time.sleep(0.1) 
+        time.sleep(0.1)
+
         self._file_path = file_path
         self._state = DataWriterState.FINISH_AND_SAVING
 
@@ -334,36 +341,50 @@ class DataWriter:
         return self._state
 
 
-class DataMonitor(DataWriter):
-    """
-    DataMonitor: DataWriter의 기능을 상속받아 수집과 마이크로폰 모니터링을 동시에 처리.
-    COLLECTING 상태일 때만 print(packetdata)를 실행하여 모니터링을 제어함.
-    """
+class DataMonitor:
+    """DataMonitor"""
+
+    _timer: timer.Timer
+    _serial: serial.Serial
+    _packet_handler: VacGripPacketHandler
+    _inputbuf: bytearray
+    _packetdata: List[VacGripPacketData]
+
+    def __init__(self, port_name: str, baud_rate: int = BAUD_RATE) -> None:
+        self._timer = timer.Timer(0.01, self._update)
+        self._serial = serial.Serial(port_name, baud_rate, timeout=0)
+        self._serial.reset_input_buffer()
+        self._packet_handler = VacGripPacketHandler()
+        self._clear_buf()
+
+        self._timer.start()
+
+    def close(self) -> None:
+        if self._timer.is_running():
+            self._timer.stop()
+
+    def _clear_buf(self) -> None:
+        self._inputbuf = bytearray(0)
+        self._packetdata = []
 
     def _update(self) -> None:
-        # COLLECTING 상태일 때만 수집(누적) 및 출력(모니터링)을 수행.
-        if self._state == DataWriterState.COLLECTING:
-            self._collect_and_monitor()
-            
-        elif self._state == DataWriterState.FINISH_AND_SAVING:
-            self._save()
-            self._clear_buf()
-            self._state = DataWriterState.SAVED
-    
-    def _collect_and_monitor(self) -> None:
+        self._collect()
+
+        if len(self._packetdata) != 0:
+            for packetdata in self._packetdata:
+                print(packetdata)
+            self._packetdata.clear()
+
+    def _collect(self) -> None:
         packet_size = self._packet_handler.packet_size
 
-        # 1. 원시 바이트 수집 
+        # add new bytes to input buffer
         while True:
             new_bytes = self._serial.read(packet_size)
             self._inputbuf += new_bytes
             if len(new_bytes) < packet_size:
                 break
 
-        # 2. 유효 패킷 추출 및 처리 (출력 + 누적)
-        for packet_candidate, packetdata in self._packet_handler.generate_valid_packet(self._inputbuf):
-            # 출력 (모니터링) - __str__에서 마이크 데이터만 출력하도록 수정됨
-            print(packetdata) 
-            
-            # 누적 (수집)
-            self._packets += packet_candidate
+        # add valid bytes to packets
+        for _, packetdata in self._packet_handler.generate_valid_packet(self._inputbuf):
+            self._packetdata.append(packetdata)

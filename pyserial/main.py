@@ -22,17 +22,11 @@ ROOT_SAVE_DIR = "/home/jeong/test/pyserial/data"
 PLOT_FILE_NAME = "data_mic_plot.png"
 # ----------------------------------------------
 
-# --- 헬퍼 함수 (setup_serial_connection, get_non_blocking_input, convert_data 함수는 이전과 동일) ---
 def setup_serial_connection(DataHandlerClass):
-    """직렬 연결을 시도하고 DataMonitor 객체를 반환합니다."""
-    print(f"\n데이터 핸들러 ({DataHandlerClass.__name__})를 {SERIAL_PORT}로 연결을 시도합니다...")
     try:
         handler = DataHandlerClass(port_name=SERIAL_PORT) 
-        print(f"✅ {SERIAL_PORT} 연결 성공.")
         return handler
     except serial.SerialException:
-        print(f"❌ 오류: {SERIAL_PORT} 연결에 실패했습니다.")
-        print("  - 장치가 연결되어 있는지, 권한이 있는지 확인하세요.")
         exit(1)
 
 def get_non_blocking_input():
@@ -186,18 +180,18 @@ if __name__ == "__main__":
 
     monitor = setup_serial_connection(vacgrip.DataMonitor)
     
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    current_save_dir = os.path.join(ROOT_SAVE_DIR, timestamp)
+    # timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    # current_save_dir = os.path.join(ROOT_SAVE_DIR, timestamp)
 
-    dat_file_path, success = None, False
-    if monitor is not None:
-        dat_file_path, success = run_main_loop(monitor, current_save_dir)
-        monitor.close()
+    # dat_file_path, success = None, False
+    # if monitor is not None:
+    #     dat_file_path, success = run_main_loop(monitor, current_save_dir)
+    #     monitor.close()
         
-    if dat_file_path and success:
-        npz_file_path = convert_data(dat_file_path)
-        if npz_file_path:
-            plot_data(npz_file_path, current_save_dir)
+    # if dat_file_path and success:
+    #     npz_file_path = convert_data(dat_file_path)
+    #     if npz_file_path:
+    #         plot_data(npz_file_path, current_save_dir)
             
-    print("\n\n--- 프로그램 전체 종료 ---")
-    print("모든 연결이 닫혔습니다.")
+    # print("\n\n--- 프로그램 전체 종료 ---")
+    # print("모든 연결이 닫혔습니다.")
