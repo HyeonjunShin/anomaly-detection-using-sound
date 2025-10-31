@@ -152,9 +152,7 @@ class VacGripPacketHandler:
             crc = ((crc << 8) ^ self.CRC_TABLE[idx]) & 0xFFFF
         return crc
 
-    def _unpacking_if_valid(
-        self, packet_candidate: bytes
-    ) -> Optional[VacGripPacketData]:
+    def _unpacking_if_valid(self, packet_candidate: bytes) -> Optional[VacGripPacketData]:
         if len(packet_candidate) == self._packet_size:
             if packet_candidate[:4] == b"\xff\xff\xfd\x00":
                 packetdata = VacGripPacketData(
@@ -165,19 +163,38 @@ class VacGripPacketHandler:
 
         return None
 
-    def generate_valid_packet(
-        self, inputbuf: bytearray
-    ) -> Iterator[Tuple[bytearray, VacGripPacketData]]:
-        while self.packet_size <= len(inputbuf):
-            packet_candidate = inputbuf[: self.packet_size]
+    def generate_valid_packet(self, inputbuf: bytearray) -> Iterator[Tuple[bytearray, VacGripPacketData]]:
+        """
+        입력 버퍼에서 유효한 패킷을 찾아 반환하는 제너레이터.
+        del inputbuf[0] 같은 비효율적인 연산을 피하기 위해 find()와 인덱스를 사용합니다.
+        """
+        start_index = 0
+        while True:
+            # 패킷 헤더를 찾습니다.
+            header_index = inputbuf.find(b"\xff\xff\xfd\x00", start_index)
+
+            # 헤더를 찾지 못하면 루프를 종료합니다.
+            if header_index == -1:
+                break
+
+            # 패킷 전체가 버퍼에 있는지 확인합니다.
+            end_index = header_index + self.packet_size
+            if end_index > len(inputbuf):
+                break
+
+            # 패킷 후보를 검증합니다.
+            packet_candidate = inputbuf[header_index:end_index]
             packetdata = self._unpacking_if_valid(packet_candidate)
 
-            if packetdata is not None:
-                del inputbuf[: self.packet_size]
+            if packetdata:
                 yield packet_candidate, packetdata
-
+                start_index = end_index  # 다음 검색 위치를 현재 패킷의 끝으로 이동
             else:
-                del inputbuf[0]
+                start_index = header_index + 1 # 헤더는 맞지만 유효하지 않은 패킷. 헤더 다음부터 다시 검색
+
+        # 처리된 부분(start_index 이전)을 버퍼에서 한 번에 제거합니다.
+        if start_index > 0:
+            del inputbuf[:start_index]
 
     @property
     def packet_size(self) -> int:
@@ -228,9 +245,10 @@ def load_rawdata(file_path: str) -> VacGripRawData:
 def load_data(file_path: str) -> VacGripData:
     rawdata = load_rawdata(file_path)
 
-    tick_dif = rawdata.tick[1:] - rawdata.tick[:-1]
+    tick_dif: int = rawdata.tick[1:] - rawdata.tick[:-1] # 50000
     tick_dif[tick_dif < 0] = tick_dif[tick_dif < 0] + 4294967296
     time_dif = tick_dif / 53760000
+    
     time = np.cumsum(time_dif)
     time = np.insert(time, 0, 0)
 
@@ -351,8 +369,8 @@ class DataMonitor:
     _packetdata: List[VacGripPacketData]
 
     def __init__(self, port_name: str, baud_rate: int = BAUD_RATE) -> None:
-        self._timer = timer.Timer(0.01, self._update)
-        self._serial = serial.Serial(port_name, baud_rate, timeout=0)
+        self._timer = timer.Timer(1, self._update)
+        self._serial = serial.Serial(port_name, baud_rate, timeout=0) # timeout = 0 means non-blocking mode.
         self._serial.reset_input_buffer()
         self._packet_handler = VacGripPacketHandler()
         self._clear_buf()
@@ -380,9 +398,12 @@ class DataMonitor:
 
         # add new bytes to input buffer
         while True:
-            new_bytes = self._serial.read(packet_size)
+            new_bytes = self._serial.read(packet_size) 
+            # Read from serial until packet_size and because the serial is non-blocking mode 
+            # The serial buffer can be less then packet_size.
             self._inputbuf += new_bytes
             if len(new_bytes) < packet_size:
+                # This means that serial buffer is empty.
                 break
 
         # add valid bytes to packets

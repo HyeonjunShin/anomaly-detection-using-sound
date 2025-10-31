@@ -23,7 +23,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libxext-dev \
     libxrender-dev \
     libxft-dev \
-    # PyQt5 backend
+    # PyQt6 backend
     libx11-xcb1 \
     libxkbcommon-x11-0 \
     libxcb1 \
@@ -39,7 +39,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libxtst6 \
     libfontconfig1 \
     libfreetype6 \
-
+    # PyQt6 runtime
     libxcb-cursor0 \
     libxcb-icccm4 \
     libxcb-image0 \
@@ -49,13 +49,13 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libxcb-sync1 \
     libxcb-xinerama0 \
     libxcb-xinput0 \
-
     libegl1 \
     libglvnd0 \
     libdbus-1-3 \
     # etc
     git \
-    sudo
+    sudo \
+    curl
 
 # Build and install python 3.12.12 version
 RUN cd /tmp \
@@ -72,7 +72,8 @@ RUN update-alternatives --install /usr/bin/python python /usr/local/bin/python3.
     &&python -m pip install --no-cache-dir --upgrade pip
 
 RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
-RUN pip install pyqt6 pyside6 matplotlib pandas
+RUN pip install pyqt6 pyside6 matplotlib pandas pyserial pyqtgraph scipy
+
 
 # Using non-root system
 ARG USERNAME=vscode
@@ -84,6 +85,14 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
     
 USER $USERNAME
+
+# etc...
+SHELL ["/bin/bash", "-c"]
+
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash \
+    && source ~/.nvm/nvm.sh \
+    && nvm install 24 \
+    && npm install -g @google/gemini-cli@latest
 
 # Make venv environment
 # RUN cd /workspaces/anomaly-detection-using-sound \
