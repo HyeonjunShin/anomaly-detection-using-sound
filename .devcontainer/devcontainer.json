@@ -19,8 +19,8 @@
 		"vscode": {
 			"extensions": [
 				"ms-python.python",
-				"google.geminicodeassist",
-				"mechatroner.rainbow-csv"
+				"mechatroner.rainbow-csv",
+				"google.geminicodeassist@2.55.0"
 			]
 		}
 	},

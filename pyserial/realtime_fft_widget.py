@@ -19,7 +19,7 @@ import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtWidgets
 
-import vacgrip
+import data_packet
 
 # --- 상수 정의 ---
 # 화면에 표시할 시간의 길이 (패킷/데이터 수). 약 2초 분량의 데이터를 표시 (990Hz 기준)
@@ -33,14 +33,13 @@ MAX_FREQUENCY = 32 * 625  # 32채널 * 625Hz/채널 = 20000Hz
 
 # pyqt is composed by mkQapp, widget, plot, plot_item
 class RealtimeSpectrogramWidget(pg.GraphicsLayoutWidget):
-    data_ready_signal = QtCore.Signal() 
     # To send from another thread to main gui thread
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("실시간 FFT 데이터 시각화")
 
-        self.data_buffer = deque(maxlen=HISTORY_LENGTH)
+        self.data_buffer = deque(maxlen=2000)
 
         self.plot_item = self.addPlot(title="Real-time FFT Data (Frequency vs. Time)")
         self.plot_item.setLabel("left", "Frequency", units="Hz")
@@ -53,14 +52,14 @@ class RealtimeSpectrogramWidget(pg.GraphicsLayoutWidget):
         bar = pg.ColorBarItem(values=(0, 1), colorMap=colormap)
         bar.setImageItem(self.image_item)
 
-        self.data_ready_signal.connect(self._update_plot) 
-        # When the signal.emit() function call from another thread, self._update_plot function run. 
+        self.update_timer = QtCore.QTimer()
+        self.update_timer.setInterval(33)  # 1000sec/20frame = 50ms
+        self.update_timer.timeout.connect(self._update_plot)
+        self.update_timer.start()
 
-    def run(self, packet_data: vacgrip.VacGripPacketData):
+    def run(self, packet_data):
         data = [time.time()] + list(packet_data.mic)
         self.data_buffer.append(data)
-        self.data_ready_signal.emit() 
-        # To send the signal to connected by QtCore.Signal()
 
     def _update_plot(self):
         if len(self.data_buffer) < 2:
@@ -72,7 +71,6 @@ class RealtimeSpectrogramWidget(pg.GraphicsLayoutWidget):
         min_val = fft_data.min()
         log_data = np.log10(fft_data - min_val + 1e-12)
 
-        # (시간, 주파수) 형태의 데이터를 (주파수, 시간) 형태로 전치(.T)하여 전달
         self.image_item.setImage(log_data, autoLevels=True)
 
         self.image_item.setRect(0, 0, HISTORY_SECONDS, MAX_FREQUENCY)
