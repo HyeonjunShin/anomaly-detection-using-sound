@@ -1,13 +1,11 @@
 import pandas as pd
 import os
 
+OUTPUT_PATH = "./data/merged_fft_data/"
+
 def readData(file_path):
     return pd.read_csv(file_path)
 
-def makeWindowedData(data, window_size=10, hop_size=5):
-    ret = []
-    for start in range(0, len(data) - window_size + 1, hop_size):
-        print(start, start + window_size)
 
 def main():
     filePaths = [
@@ -17,7 +15,7 @@ def main():
         "./data/fft_data/2025-11-11_10-58-11(shin,crumple,new device).csv",
         "./data/fft_data/2025-11-12_05-24-36(jung,rubbing,new device).csv",
         "./data/fft_data/2025-11-12_05-27-27(jung,crumple,new device).csv",
-        # "./data/fft_data/2025-11-11_11-04-25(shin,idle, new deivce).csv"
+        "./data/fft_data/2025-11-11_11-04-25(shin,idle, new deivce).csv"
     ]
     
     dataDict = {}
@@ -28,22 +26,28 @@ def main():
             label = "rubbing"
         elif "crumple" in path:
             label = "crumple"
+        elif "idle" in path:
+            label = "idle"
         
         try:
             dataDict[label].append(data)
         except KeyError:
             dataDict[label] = [data]
     
-
     for label, data in dataDict.items():
         combinedData = pd.concat(data, ignore_index=True)
         dataDict[label] = combinedData
         print(f"{label}: {combinedData.shape}")
+        os.makedirs(OUTPUT_PATH, exist_ok=True)
+        combinedData.to_csv(os.path.join(OUTPUT_PATH, f"{label}.csv"), index=False)
     
-    # makeWindowedData(dataDict["rubbing"], window_size=200, hop_size=100)
+    # dataListWindowed = makeWindowedDataWithLabel(dataDict["rubbing"], 0, window_size=200, hop_size=100)
+    # for dataWindowed in dataListWindowed:
+        # print(dataWindowed[0].shape, dataWindowed[1])
 
-    for start in range(0, len(range(1000)) - 100 + 1, 100):
-        print(start, start + 100)
+    # dataListWindowed = makeWindowedDataWithLabel(dataDict["crumple"], 1, window_size=200, hop_size=100)
+    # for dataWindowed in dataListWindowed:
+        # print(dataWindowed[0].shape, dataWindowed[1])
 
     
 
