@@ -2,4 +2,7 @@
     // "python.REPL.sendToNativeREPL": false,
     // "terminal.integrated.shellIntegration.enabled": false,
     // "python.defaultInterpreterPath": "./.venv/bin/python"
+    "clangd.path": "/usr/bin/clangd",
+    "C_Cpp.intelliSenseEngine": "disabled"
+    
 }
