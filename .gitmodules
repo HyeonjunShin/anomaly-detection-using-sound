@@ -1,0 +1,3 @@
+[submodule "serial-monitoring"]
+	path = serial-monitoring
+	url = git@github.com:HyeonjunShin/serial-monitoring.git

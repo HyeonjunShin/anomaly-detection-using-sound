@@ -6,14 +6,14 @@ class FFT2DCNN(nn.Module):
     def __init__(self, n_classes=2):
         super().__init__()
         # Input. (batch, 1, time=100, freq=64)
-        self.conv1 = nn.Conv2d(1, 8, kernel_size=(5,5), padding=2)
-        self.bn1 = nn.BatchNorm2d(8)
-        self.conv2 = nn.Conv2d(8, 16, kernel_size=(5,5), padding=2)
-        self.bn2 = nn.BatchNorm2d(16)
-        self.conv3 = nn.Conv2d(16, 32, kernel_size=(3,3), padding=1)
-        self.bn3 = nn.BatchNorm2d(32)
+        self.conv1 = nn.Conv2d(1, 4, kernel_size=(5,5), padding=2)
+        self.bn1 = nn.BatchNorm2d(4)
+        self.conv2 = nn.Conv2d(4, 8, kernel_size=(5,5), padding=2)
+        self.bn2 = nn.BatchNorm2d(8)
+        self.conv3 = nn.Conv2d(8, 16, kernel_size=(3,3), padding=1)
+        self.bn3 = nn.BatchNorm2d(16)
         self.pool = nn.AdaptiveAvgPool2d(1)  # (time, freq) -> 1x1
-        self.fc = nn.Linear(32, n_classes)   # output. 2 classes
+        self.fc = nn.Linear(16, n_classes)   # output. 2 classes
 
     def forward(self, x):
         # x: (batch, time, freq) -> (batch, 1, time, freq)
