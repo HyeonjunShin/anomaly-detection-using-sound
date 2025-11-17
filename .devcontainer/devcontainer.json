@@ -20,7 +20,9 @@
 			"extensions": [
 				"ms-python.python",
 				"mechatroner.rainbow-csv",
-				"google.geminicodeassist@2.55.0"
+				"google.geminicodeassist@2.55.0",
+				"ms-vscode.cpptools",
+				"ms-vscode.cmake-tools"
 			]
 		}
 	},
@@ -28,6 +30,7 @@
 		// "--rm",
 		"-it",
 		"--gpus", "all",
+		"--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw",
 		// "--device-cgroup-rule=c 188:* rmw"
 		"--device=/dev/ttyUSB0", // mount host usb device to container
 		"--group-add", "dialout" // admit host usb authority
@@ -36,6 +39,10 @@
 	// 	"-e", "DISPLAY=$DISPLAY",
 	// "-v", "/tmp/.X11-unix:/tmp/.X11-unix"
 	],
+	// "containerEnv": {
+	// 	"DISPLAY": ":1.0",
+	// 	"XDG_RUNTIME_DIR": "/tmp/runtime-vscode"
+	// },
 	"remoteUser": "vscode"
 
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.

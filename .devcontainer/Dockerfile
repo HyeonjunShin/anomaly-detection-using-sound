@@ -3,7 +3,9 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Seoul
 
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive && \
+    apt install -y --no-install-recommends \
     # python build
     build-essential \
     wget \
@@ -55,7 +57,20 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     # etc
     git \
     sudo \
-    curl
+    curl \
+    cmake \
+    # clangd 
+    wget curl lsb-release software-properties-common gnupg \
+    # serial
+    libboost-dev \
+    # Qt6
+    qt6-base-dev qt6-tools-dev libgl1-mesa-dev
+    
+# setting clangd 21 version(https://apt.llvm.org/)
+RUN wget https://apt.llvm.org/llvm.sh -O /tmp/llvm.sh \
+    && chmod +x /tmp/llvm.sh \ 
+    && /tmp/llvm.sh 21 \
+    && ln -s /usr/bin/clangd-21 /usr/bin/clangd 
 
 # Build and install python 3.12.12 version
 RUN cd /tmp \
