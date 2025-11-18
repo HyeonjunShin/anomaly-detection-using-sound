@@ -89,11 +89,13 @@ def main():
         for XTest, YTest in dataLoaderTest:
             pred = model(XTest)
             loss = criterion(pred, YTest)
+            
             lossTotal += loss.item() * YTest.size(0)
 
             pred = torch.argmax(pred, dim=1)
             preds.append(pred.cpu())
             labels.append(YTest.cpu())
+            
 
             correct += (pred == YTest).sum().item()
             samples += YTest.size(0)
@@ -120,6 +122,10 @@ def main():
     plt.ylabel("True Label")
     plt.tight_layout()
     plt.show()
+
+    params = model.state_dict()
+    torch.save(params, "./output/model.prm")
+
 
 
 if __name__ == "__main__":

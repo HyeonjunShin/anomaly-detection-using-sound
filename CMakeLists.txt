@@ -10,9 +10,11 @@ MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -g -O0")
+set(CMAKE_INSTALL_RPATH "${CMAKE_SOURCE_DIR}/thirdparty/")
 
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install") 
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 include(CPack)
 set(CPACK_PACKAGE_NAME "serial-monitoring")
@@ -20,15 +22,29 @@ set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_GENERATOR "TGZ;ZIP")        
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "hyeonnnjunnn@gmail.com")
 
-
 find_package(Boost REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(CUDA REQUIRED)
+
+include_directories(
+  ${TENSORRT_DIR}/include
+  /usr/local/cuda-13.0/include
+)
+
+link_directories(
+  ${TENSORRT_DIR}/lib
+  /usr/local/cuda-13.0/lib64
+)
+
 
 add_executable(main 
   src/main.cpp
 )
-target_include_directories(main PRIVATE 
-  ${CMAKE_SOURCE_DIR}/include
+target_link_libraries(main PRIVATE
+    nvinfer 
+    nvinfer_plugin 
+    nvonnxparser 
+    cudart
 )
 
 
