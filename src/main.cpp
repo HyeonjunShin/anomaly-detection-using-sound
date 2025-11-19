@@ -87,6 +87,10 @@ int main() {
         return size;
     };
 
+    // std::cout << calcSize(engine->getTensorShape(inputName)) << ", " << 
+        // calcSize(engine->getTensorShape(outputName)) << std::endl;
+    
+    
     size_t inputSize = calcSize(inputDims) * sizeof(float);
     size_t outputSize = calcSize(engine->getTensorShape(outputName)) * sizeof(float); // 실제 출력 사이즈 사용
 
@@ -101,6 +105,7 @@ int main() {
 
     // 임시 입력 데이터 채우기 (예시)
     std::fill(inputData.begin(), inputData.end(), 1.0f);
+    // std::cout << inputData.size() << ", " << outputData.size() << std::endl;
 
     // CUDA 스트림 생성
     cudaStream_t stream;
