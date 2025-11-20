@@ -1,4 +1,4 @@
-from dataset import DataPreprocessor, FFTDataset
+from dataset import FFTDataset
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
@@ -20,18 +20,20 @@ def main():
     targets = ["idle", "rubbing", "crumple"]
     window_size = 200
     hop_size = 100
-    dataPrep = DataPreprocessor("./data/merged_fft_data/", targets=targets, window_size=window_size, hop_size=hop_size)
+    # dataPrep = DataPreprocessor("./data/merged_fft_data/", targets=targets, window_size=window_size, hop_size=hop_size)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    datasetTrain = FFTDataset(dataPrep.dataTrain, dataPrep.labelsTrain, device=device, dtype="train")
-    datasetVal = FFTDataset(dataPrep.dataVal, dataPrep.labelsVal, device=device)
-    datasetTest = FFTDataset(dataPrep.dataTest, dataPrep.labelsTest, device=device)
+    # datasetTrain = FFTDataset(dataPrep.dataTrain, dataPrep.labelsTrain, device=device, dtype="train")
+    # datasetVal = FFTDataset(dataPrep.dataVal, dataPrep.labelsVal, device=device)
+    # datasetTest = FFTDataset(dataPrep.dataTest, dataPrep.labelsTest, device=device)
+    datasetTrain = FFTDataset("./data/raw_data_merged/train.bin", "./data/raw_data_merged/train.json", device=device)
+    datasetVal = FFTDataset("./data/raw_data_merged/val.bin", "./data/raw_data_merged/val.json", device=device)
+    datasetTest = FFTDataset("./data/raw_data_merged/test.bin", "./data/raw_data_merged/test.json", device=device)
 
     dataLoaderTrain = DataLoader(datasetTrain, batch_size=32, shuffle=True, drop_last=True)
     dataLoaderVal = DataLoader(datasetVal, batch_size=32, shuffle=False, drop_last=False)
     dataLoaderTest = DataLoader(datasetTest, batch_size=32, shuffle=False, drop_last=False)
-
 
     model = FFT2DCNN(n_classes=3).to(device=device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -42,7 +44,7 @@ def main():
 
     step = 0
     dataIter = iter(dataLoaderTrain)
-    while step < 10000:
+    while step < 20000:
         step += 1
         try:
             X, Y = next(dataIter)
@@ -55,7 +57,6 @@ def main():
         loss = criterion(y, Y)
         loss.backward()
         optimizer.step()
-
 
         if step % 100 == 0:
             loss = 0

@@ -6,85 +6,101 @@ from collections import defaultdict
 
 class DataPreprocessor:
     # 10초에 5000개. 1초에 500개. 0.5초에 250개. 0.2초는 100개.
-    def __init__(self, dirPath, targets=["rubbing", "crumple"], window_size=100, hop_size=50):
-        fileNames, labels = self.getFileLists_(dirPath, targets)
-        
-        dataList = defaultdict(list)
-        labelList = defaultdict(list)
-        for fileName, label in zip(fileNames, labels):
-            dataFile = pd.read_csv(os.path.join(dirPath, fileName))
-            dataFile = self.removeTimestamp_(dataFile)
-            dataFile = dataFile.values # to the numpy data format
-            print(f"  label: [{label}] {fileName}: {dataFile.shape}")
+    def __init__(self, targetPath, targets=["rubbing", "crumple"]):
+        self.fileNames, self.labels = self.getFileLists_(targetPath, targets)
+        self.dataType = None
 
-            dataWindowed = self.makeWindowedData_(dataFile, window_size=window_size, hop_size=hop_size)
-            indList = self.splitData(len(dataWindowed), ratio=[0.7, 0.1, 0.2], seed=42)
-            
-            for dataType, ind in indList.items():
-                dataList[dataType].append(dataWindowed[ind])
-                labelList[dataType].extend([label] * len(ind))
-        
-        mean=0
-        std=0
-        for dataType in dataList.keys():
-            data = np.vstack(dataList[dataType]).astype(np.int64)
-            label = np.array(labelList[dataType]).astype(np.int64)
-            if dataType == "train":
-                procData = np.log1p(np.abs(data))
-                mean = np.mean(procData, axis=(0,1)).astype(np.float64)
-                std = np.std(procData, axis=(0,1), ddof=0).astype(np.float64)
-                # for the numerical stability
-                std[std==0] = 1e-8
+    def initData_(self):
+        self.dataList = defaultdict(list)
+        self.labelList = defaultdict(list)
 
-            # save the binary data
-            with open(os.path.join(dirPath, dataType+".bin"), "wb") as f:
+        self.windowSize=None
+        self.hopSize=None
+
+        self.mean=0
+        self.std=0
+
+    def getTrainData(self):
+        self.dataType = "train"
+        data = self.dataList["train"]
+        label = self.labelList["train"]
+        data = np.log1p(np.abs(data))
+        data = (data - self.mean) / self.std
+        return self
+    
+    def getValData(self):
+        self.dataType = "val"
+        data = self.dataList["val"]
+        label = self.labelList["val"]
+        data = np.log1p(np.abs(data))
+        data = (data - self.mean) / self.std
+        return self
+
+    def getTestData(self):
+        self.dataType = "test"
+        data = self.dataList["test"]
+        label = self.labelList["test"]
+        data = np.log1p(np.abs(data))
+        data = (data - self.mean) / self.std
+        return self
+
+    def saveData(self, outPath):
+        os.makedirs(outPath, exist_ok=True)
+        # save the binary data
+        for dataType, data, label in zip(self.dataList.keys(), self.dataList.values(), self.labelList.values()):
+            with open(os.path.join(outPath, dataType+".bin"), "wb") as f:
                 f.write(data.tobytes() + label.tobytes())
             # save the metadata
             metadata = {
+                "type" : str(dataType),
+                "windowSize": int(self.windowSize),
+                "hopSize": int(self.hopSize),
                 "shape": list(data.shape),
                 "dtype": {
                     "data": str(data.dtype),
                     "label": str(label.dtype)
                 },
                 "size": data.itemsize,
-                "proc": str("abs + log1p"),
-                "mean": list(mean),
-                "std": list(std)
+                "proc": tuple(["abs", "log1p"]),
+                "mean": list(self.mean),
+                "std": list(self.std)
             }
-            with open(os.path.join(dirPath, dataType+"_metadata.json"), "w") as f:
+            with open(os.path.join(outPath, dataType+".json"), "w") as f:
                     json.dump(metadata, f, indent=4)
-                
+                    
+
+    def setWindowAndHopSize(self, window_size=100, hop_size=50):
+        self.initData_()
+        self.windowSize = window_size
+        self.hopSize = hop_size
+
+        for fileName, label in zip(self.fileNames, self.labels):
+            data = pd.read_csv(fileName)
+            data = self.removeTimestamp_(data)
+            data = data.values # to the numpy data format
+            print(f"  label: [{label}] {fileName}: {data.shape}")
+
+            dataWindowed = self.makeWindowedData_(data, window_size=window_size, hop_size=hop_size)
+            indList = self.splitData(len(dataWindowed), ratio=[0.7, 0.1, 0.2], seed=42)
+            
+            for dataType, ind in indList.items():
+                self.dataList[dataType].append(dataWindowed[ind])
+                self.labelList[dataType].extend([label] * len(ind))
         
-            # self.dataTrain.append(dataWindowed[trainIdx])
-            # self.dataVal.append(dataWindowed[valIdx])
-            # self.dataTest.append(dataWindowed[testIdx])
-            # self.labelsTrain.extend([label] * len(trainIdx))
-            # self.labelsVal.extend([label] * len(valIdx))
-            # self.labelsTest.extend([label] * len(testIdx))
+        for dataType in self.dataList.keys():
+            self.dataList[dataType] = np.vstack(self.dataList[dataType]).astype(np.int64)
+            self.labelList[dataType] = np.array(self.labelList[dataType]).astype(np.int64)
 
-        # self.dataTrain = np.vstack(self.dataTrain)
-        # self.dataVal = np.vstack(self.dataVal)
-        # self.dataTest = np.vstack(self.dataTest)
-        # self.labelsTrain = np.array(self.labelsTrain)
-        # self.labelsVal = np.array(self.labelsVal)
-        # self.labelsTest = np.array(self.labelsTest)
+            if dataType == "train":
+                procedData = self.procData(self.dataList[dataType])
+                self.mean = np.mean(procedData, axis=(0,1)).astype(np.float64)
+                self.std = np.std(procedData, axis=(0,1), ddof=0).astype(np.float64)
+                # for the numerical stability
+                # self.std[self.std < 1e-8] = 1e-8
 
-        # print(self.dataTrain.shape, self.dataVal.shape, self.dataTest.shape)
-        # print(self.labelsTrain.shape, self.labelsVal.shape, self.labelsTest.shape)
-
-        # # log + standard normalization
-        # self.dataTrain = np.log1p(np.abs(self.dataTrain))
-        # self.dataVal = np.log1p(np.abs(self.dataVal))
-        # self.dataTest = np.log1p(np.abs(self.dataTest))
-
-        # self.mean = np.mean(self.dataTrain, axis=(0,1))
-        # self.std = np.std(self.dataTrain, axis=(0,1), ddof=0)
-        # self.std[self.std == 0] = 1e-8  # 안정성
-        # print(f"Data mean: {self.mean.shape}, std: {self.std.shape}")
-
-        # self.dataTrain = (self.dataTrain - self.mean) / self.std
-        # self.dataVal = (self.dataVal - self.mean) / self.std
-        # self.dataTest = (self.dataTest - self.mean) / self.std
+    def procData(self, x):
+        y = np.log1p(np.abs(x))
+        return y
 
     def getFileLists_(self, dirPath, targets=["rubbing", "crumple"]):
         files = os.listdir(dirPath)
@@ -95,8 +111,9 @@ class DataPreprocessor:
         for file in files:
             if any(t in file for t in targets):
                 label = targets.index(next((t for t in targets if t in file), None))
-                fileNames.append(file)
+                fileNames.append(os.path.join(dirPath, file))
                 labels.append(label)
+
         return fileNames, labels
         
     def removeTimestamp_(self, data):
@@ -131,4 +148,23 @@ class DataPreprocessor:
 
 
 if __name__ == "__main__":
+    from torch.utils.data import DataLoader
+
     dataPrep = DataPreprocessor("./data/raw_data_merged/", targets=["idle", "rubbing", "crumple"])
+    dataPrep.setWindowAndHopSize(100, 50)
+
+    datasetTrain = FFTDataset("")
+
+    dataLoaderTrain = DataLoader(datasetTrain, batch_size=32, shuffle=True)
+
+    dataLoaderTrain = DataLoader(dataPrep.getTrainData, batch_size=32, shuffle=True, drop_last=True)
+
+    print(len(dataLoaderTrain))
+    dataIter = iter(dataLoaderTrain)
+    while 1:
+        try:
+            data, labels = next(dataIter)
+        except StopIteration:
+            dataIter = iter(dataLoaderTrain)
+        print(data.shape, labels)
+
