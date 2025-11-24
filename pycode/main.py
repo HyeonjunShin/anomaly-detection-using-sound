@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 import numpy as np
+
 plt.rcParams.update({
     "font.size": 16,        # 기본 폰트 크기
     "axes.titlesize": 16,   # 제목 크기

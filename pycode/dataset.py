@@ -9,8 +9,9 @@ import json
 from data_preprocessing import DataPreprocessor
 
 class FFTDataset(Dataset):
-    def __init__(self, dataPrep:DataPreprocessor, device=torch.device("cpu"), transforms=None):
-        self.dataPrep = dataPrep
+    def __init__(self, data, label, device=torch.device("cpu"), transforms=None):
+        self.data = data
+        self.label = label
         self.device = device
         self.transforms = transforms.Compose(transforms) if transforms is not None else None
 
@@ -59,7 +60,6 @@ class FFTDataset(Dataset):
 
 
 def main():
-
     dataPrep = DataPreprocessor("./data/raw_data_merged/", targets=["idle", "rubbing", "crumple"])
     dataPrep.setWindowAndHopSize(100, 50)
     
