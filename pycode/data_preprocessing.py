@@ -28,29 +28,6 @@ class DataPreprocessor:
         self.mean=0
         self.std=0
 
-    def getTrainData(self):
-        data = self.dataTrain
-        label = self.labelTrain
-        data = np.log1p(np.abs(self.dataTrain))
-        data = (data - self.mean) / self.std
-        return data, label
-    
-    def getValData(self):
-        self.dataType = "val"
-        data = self.dataList["val"]
-        label = self.labelList["val"]
-        data = np.log1p(np.abs(data))
-        data = (data - self.mean) / self.std
-        return self
-
-    def getTestData(self):
-        self.dataType = "test"
-        data = self.dataList["test"]
-        label = self.labelList["test"]
-        data = np.log1p(np.abs(data))
-        data = (data - self.mean) / self.std
-        return self
-
     def saveData(self, outPath):
         os.makedirs(outPath, exist_ok=True)
         # save the binary data
@@ -174,18 +151,22 @@ class DataPreprocessor:
 
 if __name__ == "__main__":
     from torch.utils.data import DataLoader
-    # from dataset import FFTDataset
+    from dataset import FFTDataset
 
     dataPrep = DataPreprocessor("./data/raw_data_merged/", targets=["idle.csv", "rubbing.csv", "crumple.csv"])
     dataPrep.setWindowAndHopSize(100, 25)
     # dataPrep.setWindowAndHopSize(50, 25)
     # dataPrep.saveData("./data/train3/")
 
-    datasetTrain = FFTDataset(dataPrep.dataTrain, dataPrep.labelTrain, )
+    print(dataPrep.dataTest[0][0])
 
-    # dataLoaderTrain = DataLoader(datasetTrain, batch_size=32, shuffle=True)
+    # datasetTrain = FFTDataset(dataPrep.dataTrain, dataPrep.labelTrain, dataPrep.mean, dataPrep.std, mode="inf")
+    # datasetVal = FFTDataset(dataPrep.dataVal, dataPrep.labelVal, dataPrep.mean, dataPrep.std)
+    # datasetTest = FFTDataset(dataPrep.dataTest, dataPrep.labelTest, dataPrep.mean, dataPrep.std)
 
-    # dataLoaderTrain = DataLoader(dataPrep.getTrainData, batch_size=32, shuffle=True, drop_last=True)
+    # dataLoaderTrain = DataLoader(datasetTrain, batch_size=32, shuffle=True, drop_last=True)
+    # dataLoaderVal = DataLoader(datasetVal, batch_size=32, shuffle=False, drop_last=False)
+    # dataLoaderTest = DataLoader(datasetTest, batch_size=32, shuffle=False, drop_last=False)
 
     # print(len(dataLoaderTrain))
     # dataIter = iter(dataLoaderTrain)

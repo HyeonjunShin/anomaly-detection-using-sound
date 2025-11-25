@@ -74,6 +74,7 @@ int main() {
     std::cout<< inputName << ", " << outputName << std::endl;
 
     // 입출력 텐서 정보 가져오기 및 사이즈 계산
+    // 입출력 텐서 정보 가져오기 및 사이즈 계산
     nvinfer1::Dims4 inputDims = nvinfer1::Dims4{1, 1, 100, 64}; // 예시: NCHW, 배치 크기 1
     // 실제 모델의 입력 차원은 getBindingDimensions 등으로 가져와야 합니다.
     // 여기서는 임시 데이터 생성을 위해 예시 차원을 사용합니다.

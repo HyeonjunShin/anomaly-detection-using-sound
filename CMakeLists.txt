@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.20.0)
+cmake_minimum_required(VERSION 4.2.0)
 project(serial_monitoring VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -22,9 +22,21 @@ set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_GENERATOR "TGZ;ZIP")        
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "hyeonnnjunnn@gmail.com")
 
+include(FetchContent)
+FetchContent_Declare(json
+        GIT_REPOSITORY https://github.com/nlohmann/json
+        GIT_PROGRESS TRUE
+        GIT_SHALLOW TRUE
+        GIT_TAG v3.12.0)
+
+FetchContent_MakeAvailable(json)
+
 find_package(Boost REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
-find_package(CUDA REQUIRED)
+# find_package(CUDA REQUIRED)
+
+set(Torch_DIR "/home/vscode/libtorch/share/cmake/Torch")
+find_package(Torch REQUIRED)
 
 include_directories(
   ${TENSORRT_DIR}/include
@@ -47,6 +59,11 @@ target_link_libraries(main PRIVATE
     cudart
 )
 
+add_executable(main_libtorch src/main_libtorch.cpp)
+target_link_libraries(main_libtorch PRIVATE 
+  "${TORCH_LIBRARIES}"
+  nlohmann_json::nlohmann_json
+)
 
 if(Boost_FOUND)
   message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")

@@ -9,12 +9,17 @@ import json
 from data_preprocessing import DataPreprocessor
 
 class FFTDataset(Dataset):
-    def __init__(self, data, label, device=torch.device("cpu"), transforms=None):
+    def __init__(self, data, label, mean, std, mode=None, device=torch.device("cpu"), transforms=None):
         self.data = data
         self.label = label
+        self.mode = mode
+        self.mean = mean
+        self.std = std
         self.device = device
         self.transforms = transforms.Compose(transforms) if transforms is not None else None
 
+        self.data = np.log1p(np.abs(self.data))
+        self.data = (self.data - self.mean) / self.std
         # with open(metadataPath, 'r') as f:
         #     metadata = json.load(f)
 
@@ -37,14 +42,14 @@ class FFTDataset(Dataset):
         # proc = metadata["proc"]
         # mean = metadata["mean"]
         # std = metadata["std"]
-        print(f"{dataPrep.dataType} is loaded. {dataPrep.}")
+        # print(f"{dataPrep.dataType} is loaded. {dataPrep.}")
         
-        self.data, self.label = dataPrep.getTrainData()
-        self.data = np.log1p(np.abs(self.data))
-        self.data = (self.data - dataPrep.mean) / dataPrep.std
+        # self.data, self.label = dataPrep.getTrainData()
+        # self.data = np.log1p(np.abs(self.data))
+        # self.data = (self.data - dataPrep.mean) / dataPrep.std
 
     def __len__(self):
-        if self.dataPrep.dataType == "train":
+        if self.mode == "inf":
             return 100000000
         else:
             return len(self.data)

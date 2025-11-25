@@ -3,11 +3,13 @@ from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
 from model import FFT2DCNN
+from data_preprocessing import DataPreprocessor
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 import numpy as np
+import os
 
 plt.rcParams.update({
     "font.size": 16,        # 기본 폰트 크기
@@ -17,24 +19,47 @@ plt.rcParams.update({
     "ytick.labelsize": 16   # y축 글자 크기
 })
 
+
+def saveModel(path:str, model:nn.Module, windowSize):
+    model.eval()
+
+    x = torch.randn(1, windowSize, 64, dtype=torch.float32)
+    trancedModule = torch.jit.trace(model, x)        
+    trancedModule.save(os.path.join(path, "model.pt"))
+    print("Saved model.")
+
 def main():
     targets = ["idle", "rubbing", "crumple"]
-    window_size = 200
-    hop_size = 100
-    # dataPrep = DataPreprocessor("./data/merged_fft_data/", targets=targets, window_size=window_size, hop_size=hop_size)
+    windowSize = 100
+    hopSize = 10
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # datasetTrain = FFTDataset(dataPrep.dataTrain, dataPrep.labelsTrain, device=device, dtype="train")
     # datasetVal = FFTDataset(dataPrep.dataVal, dataPrep.labelsVal, device=device)
     # datasetTest = FFTDataset(dataPrep.dataTest, dataPrep.labelsTest, device=device)
-    datasetTrain = FFTDataset("./data/raw_data_merged/train.bin", "./data/raw_data_merged/train.json", device=device)
-    datasetVal = FFTDataset("./data/raw_data_merged/val.bin", "./data/raw_data_merged/val.json", device=device)
-    datasetTest = FFTDataset("./data/raw_data_merged/test.bin", "./data/raw_data_merged/test.json", device=device)
+    # datasetTrain = FFTDataset("./data/raw_data_merged/train.bin", "./data/raw_data_merged/train.json", device=device)
+    # datasetVal = FFTDataset("./data/raw_data_merged/val.bin", "./data/raw_data_merged/val.json", device=device)
+    # datasetTest = FFTDataset("./data/raw_data_merged/test.bin", "./data/raw_data_merged/test.json", device=device)
+
+    # dataLoaderTrain = DataLoader(datasetTrain, batch_size=32, shuffle=True, drop_last=True)
+    # dataLoaderVal = DataLoader(datasetVal, batch_size=32, shuffle=False, drop_last=False)
+    # dataLoaderTest = DataLoader(datasetTest, batch_size=32, shuffle=False, drop_last=False)
+
+
+    dataPrep = DataPreprocessor("./data/raw_data_merged/", targets=["idle.csv", "rubbing.csv", "crumple.csv"])
+    dataPrep.setWindowAndHopSize(windowSize, hopSize)
+    # dataPrep.setWindowAndHopSize(50, 25)
+    # dataPrep.saveData("./data/train3/")
+
+    datasetTrain = FFTDataset(dataPrep.dataTrain, dataPrep.labelTrain, dataPrep.mean, dataPrep.std, mode="inf", device=device)
+    datasetVal = FFTDataset(dataPrep.dataVal, dataPrep.labelVal, dataPrep.mean, dataPrep.std, device=device)
+    datasetTest = FFTDataset(dataPrep.dataTest, dataPrep.labelTest, dataPrep.mean, dataPrep.std, device=device)
 
     dataLoaderTrain = DataLoader(datasetTrain, batch_size=32, shuffle=True, drop_last=True)
     dataLoaderVal = DataLoader(datasetVal, batch_size=32, shuffle=False, drop_last=False)
     dataLoaderTest = DataLoader(datasetTest, batch_size=32, shuffle=False, drop_last=False)
+
 
     model = FFT2DCNN(n_classes=3).to(device=device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -105,8 +130,7 @@ def main():
 
     lossAvg = lossTotal / samples
     acc = correct / samples
-    print(f"Test Loss: {lossAvg:.4f} Acc: {acc:.4f}")       
-
+    print(f"Test Loss: {lossAvg:.4f} Acc: {acc:.4f}")
 
     preds = torch.cat(preds).numpy()
     labels = torch.cat(labels).numpy()
@@ -125,8 +149,12 @@ def main():
     plt.tight_layout()
     plt.show()
 
-    params = model.state_dict()
-    torch.save(params, "./output/model.prm")
+
+    saveModel("./output/", model, windowSize)
+    # params = model.state_dict()
+    # torch.save(params, "./output/model.prm")
+
+
 
 
 
